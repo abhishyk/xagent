@@ -1,0 +1,24 @@
+{
+  "name": "xagent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private xagent assistant on a single Cloudflare Worker (Workers AI + Vectorize + D1 + Google Docs RAG)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "create-admin:local": "node scripts/create-admin.mjs --local",
+    "create-admin:remote": "node scripts/create-admin.mjs --remote",
+    "vectorize:create": "wrangler vectorize create xagent-docs --dimensions=1024 --metric=cosine",
+    "test": "node --test --test-reporter=spec test/*.test.mjs",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dryrun"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

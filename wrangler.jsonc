@@ -1,0 +1,79 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "xagent",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+
+  // Static GUI (HTML/CSS/JS) served by this same Worker.
+  // run_worker_first=true => EVERY request goes through the Worker first,
+  // so the chat/admin pages are never served to unauthenticated visitors.
+  "assets": {
+    "directory": "./public/",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+
+  // Workers AI (GPT-OSS-20B + embeddings)
+  // remote: true => `wrangler dev` uses the real Workers AI / Vectorize
+  // (no local simulation exists for either; requires `wrangler login`).
+  "ai": { "binding": "AI", "remote": true },
+
+  // D1: users, sessions, chats, document metadata, chunk text, sync runs
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "xagent",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Vectorize: embeddings (dimensions must match EMBEDDING_MODEL; bge-m3 = 1024)
+  "vectorize": [
+    { "binding": "VECTORIZE", "index_name": "xagent-docs", "remote": true }
+  ],
+
+  // Non-secret configuration. Change without touching code.
+  "vars": {
+    "APP_NAME": "xagent",
+    "AI_MODEL": "@cf/openai/gpt-oss-20b",
+    "EMBEDDING_MODEL": "@cf/baai/bge-m3",
+    "EMBEDDING_DIMENSIONS": "1024",
+    "REASONING_EFFORT": "",
+    "MAX_OUTPUT_TOKENS": "2048",
+    "TEMPERATURE": "0.3",
+
+    "TOP_K": "6",
+    "MIN_SIMILARITY": "0.45",
+    "MAX_CONTEXT_CHARS": "14000",
+    "MAX_CONTEXT_TOKENS": "4000",
+
+    "MAX_MESSAGE_LENGTH": "12000",
+    "MAX_HISTORY_MESSAGES": "8",
+    "DAILY_AI_LIMIT": "50",
+    "CHAT_RATE_LIMIT_PER_MINUTE": "8",
+
+    "SESSION_DURATION": "12",
+    "PASSWORD_ITERATIONS": "100000",
+
+    "CHUNK_SIZE": "1800",
+    "CHUNK_OVERLAP": "200",
+    "EMBED_BATCH_SIZE": "20",
+    "MAX_EMBED_PER_STEP": "60",
+
+    // Tab names (comma separated, case-insensitive) that must NEVER be indexed,
+    // e.g. tabs holding OTP/TOTP seeds, passwords or keys. Child tabs are skipped too.
+    "GOOGLE_EXCLUDE_TABS": ""
+  },
+
+  // OPTIONAL automatic sync. Disabled by default to stay well inside free limits.
+  // To enable every 6 hours:  "crons": ["0 */6 * * *"]
+  "triggers": { "crons": [] },
+
+  "observability": { "enabled": true }
+
+  // Optional custom domain (uncomment and edit after the zone is on Cloudflare):
+  // ,"routes": [ { "pattern": "ai.example.com", "custom_domain": true } ]
+}
