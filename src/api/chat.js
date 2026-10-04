@@ -13,6 +13,7 @@ import { retrieve, KnowledgeSearchError } from '../ai/rag.js';
 import { buildContextBlock, buildMessages } from '../ai/prompts.js';
 import { generateStream } from '../ai/model.js';
 import { readUsageToday } from '../utils/usage.js';
+import { chooseTier, tierInfo } from '../ai/tiers.js';
 
 export const LIMIT_MESSAGE = "Today's AI usage limit has been reached. Please try again later.";
 const MAX_HISTORY_ITEM_CHARS = 6000;
@@ -56,10 +57,17 @@ export async function handleChat(request, env, ctx, user) {
   // Free-tier safety: reserve one generation from the daily budget BEFORE any AI call.
   // Use the whole free Workers AI allowance: stop only when today's neurons
   // (+ one typical answer) would exceed it. FREE_NEURONS_PER_DAY=0 disables this.
+  // Saver mode: once only SAVER_AT_REMAINING_PCT % of the free neurons is left,
+  // switch to the cheap model so the rest of the budget lasts much longer.
+  // Model tier by remaining budget: main -> mid (<=30% left) -> saver (<=10% left).
+  let tier = 'main';
   if (cfg.freeNeuronsPerDay > 0) {
     const today = await readUsageToday(env.DB);
-    const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 ? today.aiNeurons / today.aiAnswers : 150;
-    if (today.aiNeurons + perAnswer > cfg.freeNeuronsPerDay) {
+    const left = cfg.freeNeuronsPerDay - today.aiNeurons;
+    tier = chooseTier(cfg, today.aiNeurons);
+    const avg = today.aiAnswers > 0 && today.aiNeurons > 0 ? today.aiNeurons / today.aiAnswers : 150;
+    const perAnswer = tier === 'main' ? avg : tierInfo(cfg, tier).typical;
+    if (perAnswer > left) {
       logEvent('AI_LIMIT_REACHED', { user_id: user.id, reason: 'neurons' });
       return json({ error: LIMIT_MESSAGE, code: 'daily_limit' }, 429);
     }
@@ -96,9 +104,11 @@ export async function handleChat(request, env, ctx, user) {
         sources: rag.sources,
         no_relevant_docs: rag.noRelevant,
         notice: rag.noRelevant ? 'No sufficiently relevant documentation found.' : null,
+        model_tier: tier,
+        saver_mode: tier === 'saver',
       });
-      logEvent('AI_REQUEST', { user_id: user.id, model: cfg.aiModel });
-      for await (const delta of generateStream(env, messages)) {
+      logEvent('AI_REQUEST', { user_id: user.id, model: tierInfo(cfg, tier).model });
+      for await (const delta of generateStream(env, messages, { tier })) {
         answer += delta;
         await write('delta', { t: delta });
       }
