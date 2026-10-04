@@ -21,7 +21,7 @@ export function getConfig(env) {
     temperature: num(env.TEMPERATURE, 0.3),
 
     topK: Math.min(Math.max(int(env.TOP_K, 6), 1), 20),
-    minSimilarity: num(env.MIN_SIMILARITY, 0.45),
+    minSimilarity: num(env.MIN_SIMILARITY, 0.40),
     maxContextChars: int(env.MAX_CONTEXT_CHARS ?? env.MAX_CONTEXT_SIZE, 14000),
     maxContextTokens: int(env.MAX_CONTEXT_TOKENS, 4000),
 
