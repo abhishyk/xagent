@@ -63,6 +63,12 @@ export async function reserveDailyAi(db, limit) {
   return true;
 }
 
+// Give a reservation back when no answer was produced (search/AI failure).
+export async function releaseDailyAi(db, limit) {
+  if (limit <= 0) return;
+  await increment(db, 'ai:daily', utcDay(), -1);
+}
+
 export async function pruneCounters(db) {
   const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
   await db.prepare('DELETE FROM usage_counters WHERE updated_at < ?').bind(cutoff).run();
