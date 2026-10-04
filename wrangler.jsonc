@@ -25,7 +25,7 @@
     {
       "binding": "DB",
       "database_name": "xagent",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "database_id": "8904d46e-0f09-424f-97ef-92e9b8b518e4",
       "migrations_dir": "migrations"
     }
   ],
