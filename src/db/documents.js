@@ -39,6 +39,33 @@ export async function existingChunkIds(db, documentId) {
   return new Set(results.map((r) => r.id));
 }
 
+// Keyword index (FTS5, migration 0002). Kept best-effort: if the table does not
+// exist yet the app keeps working with vector search only.
+async function ftsTry(fn) {
+  try { await fn(); return true; } catch { return false; }
+}
+
+export async function ftsBackfill(db, documentId) {
+  return ftsTry(() => db.prepare(
+    `INSERT INTO chunks_fts (chunk_id, document_id, section, content)
+     SELECT c.id, c.document_id, COALESCE(c.section, ''), c.content FROM document_chunks c
+      WHERE c.document_id = ? AND c.id NOT IN (SELECT chunk_id FROM chunks_fts WHERE document_id = ?)`
+  ).bind(documentId, documentId).run());
+}
+
+// Keyword search. `ftsQuery` is already sanitised ("term" OR "term" …).
+export async function ftsSearch(db, ftsQuery, limit = 20) {
+  if (!ftsQuery) return [];
+  try {
+    const { results } = await db.prepare(
+      'SELECT chunk_id, bm25(chunks_fts) AS score FROM chunks_fts WHERE chunks_fts MATCH ? ORDER BY score LIMIT ?'
+    ).bind(ftsQuery, limit).all();
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function insertChunks(db, documentId, chunks) {
   if (!chunks.length) return;
   const stmt = db.prepare(
@@ -52,12 +79,15 @@ export async function insertChunks(db, documentId, chunks) {
     c.contentHash, c.version || null, c.fileName || null, c.language || null, c.className || null,
     c.functionName || null, c.module || null
   )));
+  const fts = db.prepare('INSERT INTO chunks_fts (chunk_id, document_id, section, content) VALUES (?, ?, ?, ?)');
+  await ftsTry(() => db.batch(chunks.map((c) => fts.bind(c.id, documentId, c.section || '', c.content))));
 }
 
 export async function deleteChunks(db, ids) {
   for (let i = 0; i < ids.length; i += 90) {
     const slice = ids.slice(i, i + 90);
     await db.prepare(`DELETE FROM document_chunks WHERE id IN (${slice.map(() => '?').join(',')})`).bind(...slice).run();
+    await ftsTry(() => db.prepare(`DELETE FROM chunks_fts WHERE chunk_id IN (${slice.map(() => '?').join(',')})`).bind(...slice).run());
   }
 }
 
@@ -77,6 +107,7 @@ export async function getChunksByIds(db, ids) {
 }
 
 export async function deleteDocument(db, id) {
+  await ftsTry(() => db.prepare('DELETE FROM chunks_fts WHERE document_id = ?').bind(id).run());
   await db.prepare('DELETE FROM document_chunks WHERE document_id = ?').bind(id).run();
   await db.prepare('DELETE FROM documents WHERE id = ?').bind(id).run();
 }
