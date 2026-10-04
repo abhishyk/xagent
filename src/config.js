@@ -49,6 +49,18 @@ export function getConfig(env) {
     neuronsPerMOutput: num(env.AI_NEURONS_PER_M_OUTPUT, 27273),
     neuronsPerMEmbedding: num(env.EMBEDDING_NEURONS_PER_M, 1075),
 
+    // Cheaper model tiers (see src/ai/tiers.js). "off" disables a tier.
+    midModel: (env.MID_AI_MODEL ?? '@cf/qwen/qwen3-30b-a3b-fp8').trim(),
+    midAtRemainingPct: num(env.MID_AT_REMAINING_PCT, 30),
+    midNeuronsPerMInput: num(env.MID_NEURONS_PER_M_INPUT, 4625),
+    midNeuronsPerMOutput: num(env.MID_NEURONS_PER_M_OUTPUT, 30475),
+    // Third tier is OFF by default (Granite has no Hindi/Hinglish support). Set
+    // SAVER_AI_MODEL to "@cf/ibm-granite/granite-4.0-h-micro" to enable it.
+    saverModel: (env.SAVER_AI_MODEL ?? 'off').trim(),
+    saverAtRemainingPct: num(env.SAVER_AT_REMAINING_PCT, 10),
+    saverNeuronsPerMInput: num(env.SAVER_NEURONS_PER_M_INPUT, 1542),
+    saverNeuronsPerMOutput: num(env.SAVER_NEURONS_PER_M_OUTPUT, 10158),
+
     loginMaxFailures: 5,
     loginWindowMinutes: 15,
     maxBodyBytes: 64 * 1024,
