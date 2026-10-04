@@ -167,6 +167,7 @@
       }
       for await (const { event, data } of readSse(res)) {
         if (event === 'meta') {
+          if (data.saver_mode) shell.extras.append(el('div', { class: 'saver-note', text: '⚡ Saver mode: today\'s AI budget is almost used, so a lighter model is answering.' }));
           if (data.notice) shell.extras.append(el('div', { class: 'notice warn', text: data.notice }));
         } else if (event === 'delta') {
           text += data.t;
