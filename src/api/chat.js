@@ -12,6 +12,7 @@ import { hitUserRateLimit, reserveDailyAi, releaseDailyAi } from '../security/ra
 import { retrieve, KnowledgeSearchError } from '../ai/rag.js';
 import { buildContextBlock, buildMessages } from '../ai/prompts.js';
 import { generateStream } from '../ai/model.js';
+import { readUsageToday } from '../utils/usage.js';
 
 export const LIMIT_MESSAGE = "Today's AI usage limit has been reached. Please try again later.";
 const MAX_HISTORY_ITEM_CHARS = 6000;
@@ -53,6 +54,17 @@ export async function handleChat(request, env, ctx, user) {
   }
 
   // Free-tier safety: reserve one generation from the daily budget BEFORE any AI call.
+  // Use the whole free Workers AI allowance: stop only when today's neurons
+  // (+ one typical answer) would exceed it. FREE_NEURONS_PER_DAY=0 disables this.
+  if (cfg.freeNeuronsPerDay > 0) {
+    const today = await readUsageToday(env.DB);
+    const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 ? today.aiNeurons / today.aiAnswers : 150;
+    if (today.aiNeurons + perAnswer > cfg.freeNeuronsPerDay) {
+      logEvent('AI_LIMIT_REACHED', { user_id: user.id, reason: 'neurons' });
+      return json({ error: LIMIT_MESSAGE, code: 'daily_limit' }, 429);
+    }
+  }
+  // Optional extra cap on the number of answers per day (DAILY_AI_LIMIT, 0 = off).
   if (!(await reserveDailyAi(env.DB, cfg.dailyAiLimit))) {
     logEvent('AI_LIMIT_REACHED', { user_id: user.id });
     return json({ error: LIMIT_MESSAGE, code: 'daily_limit' }, 429);
@@ -64,7 +76,7 @@ export async function handleChat(request, env, ctx, user) {
   try {
     rag = await retrieve(env, { question, history });
   } catch (err) {
-    await releaseDailyAi(env.DB, cfg.dailyAiLimit); // nothing was answered
+    await releaseDailyAi(env.DB); // nothing was answered
     if (err instanceof KnowledgeSearchError) return error(503, 'Knowledge search is temporarily unavailable.');
     throw err;
   }
@@ -98,8 +110,10 @@ export async function handleChat(request, env, ctx, user) {
       logEvent('AI_RESPONSE', { user_id: user.id, duration_ms: Date.now() - started, status: 'ok' });
     } catch (err) {
       logEvent('AI_ERROR', { user_id: user.id, error: String(err?.message || err) });
-      if (!answer.trim()) await releaseDailyAi(env.DB, cfg.dailyAiLimit).catch(() => {});
-      await write('error', { message: 'AI service temporarily unavailable.' }).catch(() => {});
+      if (!answer.trim()) await releaseDailyAi(env.DB).catch(() => {});
+      // Cloudflare refuses requests once the free daily neurons are used up.
+      const quota = /neuron|allocation|quota|limit|429/i.test(String(err?.message || err));
+      await write('error', { message: quota ? LIMIT_MESSAGE : 'AI service temporarily unavailable.' }).catch(() => {});
     } finally {
       await writer.close().catch(() => {});
     }
