@@ -17,7 +17,7 @@ import { embedTexts } from '../ai/embeddings.js';
 import { fetchDocument, fetchDriveMeta, documentToBlocks, docUrl, parseExcludeTabs } from './docs.js';
 import { chunkBlocks } from './chunker.js';
 import {
-  getDocument, upsertDocumentShell, markDocument, existingChunkIds, insertChunks, deleteChunks,
+  getDocument, upsertDocumentShell, markDocument, existingChunkIds, insertChunks, deleteChunks, ftsBackfill,
   listDocuments, deleteDocument, createSyncRun, addToSyncRun, finishSyncRun, getSyncRun,
 } from '../db/documents.js';
 
@@ -94,6 +94,10 @@ export async function syncDocumentStep(env, docCfg, { force = false } = {}) {
   const resuming = existing?.status === 'syncing';
 
   try {
+    // 0. Make sure every already-indexed chunk is in the keyword index (one cheap
+    //    query; fills it the first time after migration 0002 is applied).
+    if (existing) await ftsBackfill(env.DB, id);
+
     // 1. Cheap change detection via Drive metadata (skips the download entirely).
     let driveMeta = null;
     try { driveMeta = await fetchDriveMeta(env, id); } catch { driveMeta = null; }
