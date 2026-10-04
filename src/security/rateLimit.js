@@ -52,11 +52,11 @@ export async function getDailyAiUsage(db) {
   return read(db, 'ai:daily', utcDay());
 }
 
-// Atomically reserves one AI generation. Returns false when over budget.
+// Atomically counts one AI answer for today. When limit > 0 it is also enforced
+// (returns false when over the cap); 0 = count only, no cap.
 export async function reserveDailyAi(db, limit) {
-  if (limit <= 0) return true; // 0 = unlimited (not recommended on free tier)
   const count = await increment(db, 'ai:daily', utcDay());
-  if (count > limit) {
+  if (limit > 0 && count > limit) {
     await increment(db, 'ai:daily', utcDay(), -1); // give back the reservation
     return false;
   }
@@ -64,8 +64,7 @@ export async function reserveDailyAi(db, limit) {
 }
 
 // Give a reservation back when no answer was produced (search/AI failure).
-export async function releaseDailyAi(db, limit) {
-  if (limit <= 0) return;
+export async function releaseDailyAi(db) {
   await increment(db, 'ai:daily', utcDay(), -1);
 }
 
