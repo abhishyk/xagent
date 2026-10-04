@@ -337,3 +337,5 @@ input:focus, select:focus, textarea:focus, .btn:focus-visible, .icon-btn:focus-v
 .meter-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .usage-tips { margin-top: 12px; }
 .usage-tips p { margin: 4px 0; }
+
+.saver-note { font-size: 12px; color: var(--text-muted); margin: 0 0 6px; }
