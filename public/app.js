@@ -49,53 +49,61 @@
     return node;
   }
 
-  function xagentLabel() {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 32 32');
-    svg.setAttribute('aria-hidden', 'true');
-    for (const d of ['M16 2 4 7v8c0 7.2 5 13.4 12 15 7-1.6 12-7.8 12-15V7L16 2Z', 'm11 16 3.5 3.5L21.5 12']) {
-      const p = document.createElementNS(ns, 'path');
-      p.setAttribute('d', d);
-      p.setAttribute('fill', 'none');
-      p.setAttribute('stroke', 'currentColor');
-      p.setAttribute('stroke-width', '2.4');
-      p.setAttribute('stroke-linecap', 'round');
-      p.setAttribute('stroke-linejoin', 'round');
-      svg.append(p);
-    }
-    return el('div', { class: 'who' }, svg, el('span', { text: 'Xagent' }));
+  // Robot icon from <template id="tpl-robot"> in index.html (one source of truth).
+  function robotIcon(cls) {
+    const svg = document.getElementById('tpl-robot').content.firstElementChild.cloneNode(true);
+    svg.setAttribute('class', `robot ${cls || ''}`.trim());
+    return svg;
   }
 
   function assistantShell() {
     const content = el('div', { class: 'content' });
     const extras = el('div', { class: 'extras' });
-    const body = el('div', { class: 'body' }, xagentLabel(), extras, content);
-    const node = el('div', { class: 'msg assistant' }, body);
+    const body = el('div', { class: 'body' }, el('div', { class: 'who', text: 'Xagent' }), extras, content);
+    const node = el('div', { class: 'msg assistant' }, el('div', { class: 'avatar' }, robotIcon()), body);
     messagesEl.append(node);
     return { node, content, extras, body };
   }
 
   function typingIndicator() {
-    return el('div', { class: 'typing' }, el('span', { class: 'dots' }, el('i'), el('i'), el('i')), 'AI is typing…');
+    return el('div', { class: 'typing', 'aria-label': 'Xagent is typing' }, el('span', { class: 'dots' }, el('i'), el('i'), el('i')));
   }
 
-  function renderSources(sources) {
-    if (!sources || !sources.length) return null;
-    const list = el('ol');
-    for (const s of sources) {
-      // Plain text only — which tab/section the answer came from, no links.
+  const ICON_COPY = 'M8 8h11v11H8zM5 15H4V4h11v1';
+  const ICON_DONE = 'M5 12.5l4.5 4.5L19 7.5';
+  function svgIcon(d) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.8');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    svg.append(p);
+    return svg;
+  }
+
+  // Small footer under an answer: copy button + compact source chips (tab › section, no links).
+  function answerFooter(text, sources) {
+    const copy = el('button', { class: 'act-btn', type: 'button', title: 'Copy answer', 'aria-label': 'Copy answer' }, svgIcon(ICON_COPY));
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.replaceChildren(svgIcon(ICON_DONE));
+        copy.classList.add('done');
+        setTimeout(() => { copy.replaceChildren(svgIcon(ICON_COPY)); copy.classList.remove('done'); }, 1500);
+      } catch { /* clipboard blocked */ }
+    });
+    const chips = (sources || []).map((s) => {
       const where = s.section ? s.section.split(' > ').join(' › ') : (s.document || 'Documentation');
-      const meta = [];
-      if (s.file) meta.push(`File: ${s.file}`);
-      if (s.function) meta.push(`Function: ${s.function}`);
-      if (s.version) meta.push(`Version: ${s.version}`);
-      list.append(el('li', {},
-        el('span', { class: 'cite', text: s.label }),
-        el('div', {}, el('span', { class: 'src-where', text: where }),
-          meta.length ? el('div', { class: 'src-meta', text: meta.join(' · ') }) : null)));
-    }
-    return el('div', { class: 'sources' }, el('h4', { text: 'Sources' }), list);
+      const extra = [s.file && `File: ${s.file}`, s.function && `Function: ${s.function}`, s.version && `Version: ${s.version}`].filter(Boolean);
+      return el('span', { class: 'src-chip', title: [where, ...extra].join('\n') }, el('b', { text: s.label }), el('span', { text: where }));
+    });
+    return el('div', { class: 'answer-foot' }, copy, ...chips);
   }
 
   function newChat() {
@@ -177,8 +185,7 @@
           // Remember this exchange (memory only) so follow-up questions have context.
           state.turns.push({ role: 'user', content: question }, { role: 'assistant', content: text });
           state.turns = state.turns.slice(-state.maxTurns);
-          const src = renderSources(data.sources);
-          if (src) shell.body.append(src);
+          shell.body.append(answerFooter(text, data.sources));
         } else if (event === 'error') {
           if (!text) typing.remove();
           shell.extras.append(el('div', { class: 'notice err', text: data.message || 'AI service temporarily unavailable.' }));
@@ -198,7 +205,7 @@
     hideWelcome();
     userBubble(`🔎 ${query}`);
     const shell = assistantShell();
-    shell.content.append(el('div', { class: 'typing', text: 'Searching documentation…' }));
+    shell.content.append(el('div', { class: 'typing text', text: 'Searching the documentation…' }));
     scrollToBottom(true);
     try {
       const { results, notice } = await api('/api/search', { method: 'POST', body: { query } });
@@ -254,7 +261,7 @@
     const narrow = window.matchMedia('(max-width: 520px)').matches;
     input.placeholder = mode === 'search'
       ? (narrow ? 'Search documentation…' : 'Search the documentation (no AI generation)…')
-      : (narrow ? 'Ask xagent…' : 'Ask xagent anything… (paste logs, config or code too)');
+      : (narrow ? 'Ask Xagent…' : 'Ask Xagent anything… (paste logs, config or code too)');
     $('mode-hint').textContent = mode === 'search'
       ? 'Search mode returns matching documentation sections only'
       : 'Enter to send · Shift+Enter for a new line';
@@ -271,7 +278,7 @@
   $('mode-ask').addEventListener('click', () => setMode('ask'));
   $('mode-search').addEventListener('click', () => setMode('search'));
 
-  if (window.matchMedia('(max-width: 520px)').matches) input.placeholder = 'Ask xagent…';
+  if (window.matchMedia('(max-width: 520px)').matches) input.placeholder = 'Ask Xagent…';
 
   (async () => {
     try {
