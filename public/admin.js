@@ -37,9 +37,6 @@
     if (s.config.bootstrap_secrets_present) warn.push('ADMIN_INITIAL_USERNAME / ADMIN_INITIAL_PASSWORD are still set. Delete them: wrangler secret delete ADMIN_INITIAL_PASSWORD');
     $('warnings').replaceChildren(...warn.map((w) => el('div', { class: 'notice warn', text: w })));
 
-    $('config-info').textContent = `Model ${s.config.ai_model} · Embeddings ${s.config.embedding_model} · top_k ${s.config.top_k} · min similarity ${s.config.min_similarity}` +
-      (s.config.service_account_email ? ` · Share docs with ${s.config.service_account_email}` : '');
-
     $('docs-body').replaceChildren(...(s.documents.length ? s.documents.map((d) => el('tr', {},
       el('td', {}, d.url ? el('a', { href: d.url, target: '_blank', rel: 'noopener noreferrer', text: d.name || d.id }) : (d.name || d.id),
         d.last_error ? el('div', { class: 'small', text: d.last_error }) : null),
@@ -117,8 +114,7 @@
     if (pct(d1.storage_bytes, d1.storage_free_bytes) >= 0.7) tips.push('D1 storage is high: remove unused documents from GOOGLE_DOCUMENT_IDS and sync.');
     if (!tips.length) tips.push('✓ Everything is well within the free tier.');
     tips.push(`Model now: ${short(ai.current_model)}${ai.current_tier !== 'main' ? ' (saving budget)' : ''}. Plan: ${plan}.`);
-    tips.push('Counted by xagent itself; AI neurons are estimated from tokens. Exact figures: Cloudflare dashboard → Workers AI, and D1 → xagent → Metrics.');
-    $('usage-tips').replaceChildren(...tips.map((t, i) => el('p', { class: `small${i === tips.length - 1 ? ' muted' : ''}`, text: t })));
+    $('usage-tips').replaceChildren(...tips.map((t) => el('p', { class: 'small', text: t })));
   }
 
   function log(line) {
@@ -187,7 +183,7 @@
             onclick: () => toggleUser(u, me),
           }),
           ' ',
-          el('button', { class: 'btn btn-sm btn-ghost', type: 'button', text: 'Reset password', onclick: () => resetPassword(u, me) })));
+          el('button', { class: 'btn btn-sm', type: 'button', text: 'Reset password', onclick: () => resetPassword(u, me) })));
     }));
   }
 
