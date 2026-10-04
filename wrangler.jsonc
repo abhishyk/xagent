@@ -46,7 +46,7 @@
     "TEMPERATURE": "0.3",
 
     "TOP_K": "6",
-    "MIN_SIMILARITY": "0.45",
+    "MIN_SIMILARITY": "0.40",
     "MAX_CONTEXT_CHARS": "14000",
     "MAX_CONTEXT_TOKENS": "4000",
 
