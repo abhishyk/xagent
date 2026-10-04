@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>xagent</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="app">
+  <div class="main">
+    <header class="topbar">
+      <div class="brand topbar-brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.2 5 13.4 12 15 7-1.6 12-7.8 12-15V7L16 2Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m11 16 3.5 3.5L21.5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h1 class="topbar-title">xagent</h1>
+      </div>
+      <button id="new-chat" class="btn btn-primary btn-sm" type="button" title="New chat (clears this conversation)" aria-label="New chat">＋<span class="wide-only"> New Chat</span></button>
+      <span class="topbar-spacer"></span>
+      <div class="mode-switch" role="tablist" aria-label="Mode">
+        <button id="mode-ask" class="mode active" role="tab" aria-selected="true" type="button">Ask<span class="wide-only"> AI</span></button>
+        <button id="mode-search" class="mode" role="tab" aria-selected="false" type="button">Search<span class="wide-only"> Docs</span></button>
+      </div>
+      <div class="user-menu">
+        <button id="theme-btn" class="icon-btn" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <a id="admin-link" class="btn btn-ghost btn-sm" href="/admin" hidden>Admin</a>
+        <span id="user-name" class="user-chip" title="Signed in"></span>
+        <button id="logout-btn" class="btn btn-ghost btn-sm" type="button">Logout</button>
+      </div>
+    </header>
+
+    <section id="messages" class="messages" aria-live="polite">
+      <div id="welcome" class="welcome">
+        <h2>How can I help you today?</h2>
+        <p class="muted">Ask about installation, PXE/NetBoot, configuration, services, source code, or paste logs and errors to troubleshoot.</p>
+        <div class="suggestions">
+          <button class="suggestion" type="button">How does the PXE boot process work?</button>
+          <button class="suggestion" type="button">Which function validates the client MAC address?</button>
+          <button class="suggestion" type="button">How do I set up a new exam-center server?</button>
+          <button class="suggestion" type="button">I want to add automatic update support. Where should I start?</button>
+        </div>
+      </div>
+    </section>
+
+    <form id="composer" class="composer" autocomplete="off">
+      <div class="composer-box">
+        <textarea id="input" rows="1" maxlength="12000" placeholder="Ask xagent anything… (paste logs, config or code too)" aria-label="Message"></textarea>
+        <button id="send-btn" class="btn btn-primary send-btn" type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-6 16-2.5-6.5L4 12Z" fill="currentColor"/></svg>
+          <span class="send-label">Send</span>
+        </button>
+      </div>
+      <div class="composer-hint muted small"><span id="mode-hint">Enter to send · Shift+Enter for a new line</span><span id="char-count"></span></div>
+    </form>
+  </div>
+
+  <script src="/markdown.js"></script>
+  <script src="/common.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
