@@ -11,6 +11,7 @@ import { requireInt, oneOf } from '../security/validation.js';
 import { startSyncRun, runStep, finishRun, parseDocumentConfig } from '../google/sync.js';
 import { listDocuments, listSyncRuns, knowledgeStats } from '../db/documents.js';
 import { readUsageToday } from '../utils/usage.js';
+import { chooseTier, tierInfo } from '../ai/tiers.js';
 import { countUsers } from '../db/users.js';
 
 export async function handleAdminSync(request, env) {
@@ -72,6 +73,14 @@ export async function handleSyncStatus(request, env) {
         neurons_used: today.aiNeurons,
         neurons_free: cfg.freeNeuronsPerDay,
         neurons_per_answer: perAnswer,
+        current_tier: chooseTier(cfg, today.aiNeurons),
+        current_model: tierInfo(cfg, chooseTier(cfg, today.aiNeurons)).model,
+        tiers: [
+          { tier: 'main', model: cfg.aiModel, from_remaining_pct: 100 },
+          ...(cfg.midModel && cfg.midModel !== 'off' ? [{ tier: 'mid', model: cfg.midModel, from_remaining_pct: cfg.midAtRemainingPct }] : []),
+          ...(cfg.saverModel && cfg.saverModel !== 'off' ? [{ tier: 'saver', model: cfg.saverModel, from_remaining_pct: cfg.saverAtRemainingPct }] : []),
+        ],
+        saver_active: chooseTier(cfg, today.aiNeurons) === 'saver',
         answers_left_estimate: Math.min(
           Math.floor(neuronsLeft / perAnswer),
           cfg.dailyAiLimit > 0 ? Math.max(0, cfg.dailyAiLimit - today.aiAnswers) : Infinity,
