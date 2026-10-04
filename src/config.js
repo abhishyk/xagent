@@ -27,7 +27,7 @@ export function getConfig(env) {
 
     maxMessageLength: int(env.MAX_MESSAGE_LENGTH, 12000),
     maxHistoryMessages: int(env.MAX_HISTORY_MESSAGES, 8),
-    dailyAiLimit: int(env.DAILY_AI_LIMIT, 50),
+    dailyAiLimit: int(env.DAILY_AI_LIMIT, 0), // 0 = no answer-count cap (neuron budget still applies)
     chatRatePerMinute: int(env.CHAT_RATE_LIMIT_PER_MINUTE, 8),
 
     sessionHours: num(env.SESSION_DURATION, 12),
