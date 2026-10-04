@@ -96,7 +96,7 @@
       meter('Workers AI (neurons)', ai.neurons_used, ai.neurons_free, {
         note: `≈ ${fmt(ai.neurons_per_answer)} neurons per answer · about ${fmt(ai.answers_left_estimate)} more answers today`,
       }),
-      meter('AI answers (DAILY_AI_LIMIT)', ai.answers_today, ai.daily_answer_limit || 0),
+      meter(ai.daily_answer_limit ? 'AI answers (DAILY_AI_LIMIT)' : 'AI answers today', ai.answers_today, ai.daily_answer_limit || 0, ai.daily_answer_limit ? {} : { note: 'No answer cap — limited only by the free neurons above' }),
       meter('D1 rows read', d1.rows_read, d1.rows_read_free),
       meter('D1 rows written', d1.rows_written, d1.rows_written_free),
       meter('D1 storage (total)', d1.storage_bytes, d1.storage_free_bytes, {
