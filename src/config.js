@@ -38,6 +38,17 @@ export function getConfig(env) {
     embedBatchSize: Math.max(1, int(env.EMBED_BATCH_SIZE, 20)),
     maxEmbedPerStep: Math.max(1, int(env.MAX_EMBED_PER_STEP, 60)),
 
+    // Free-tier limits shown on the admin dashboard (Cloudflare Workers Free plan;
+    // all reset daily at 00:00 UTC). Override via vars if Cloudflare changes them.
+    freeNeuronsPerDay: int(env.FREE_NEURONS_PER_DAY, 10000),
+    freeD1RowsReadPerDay: int(env.FREE_D1_ROWS_READ_PER_DAY, 5000000),
+    freeD1RowsWrittenPerDay: int(env.FREE_D1_ROWS_WRITTEN_PER_DAY, 100000),
+    freeD1StorageBytes: int(env.FREE_D1_STORAGE_BYTES, 5 * 1024 ** 3),
+    // Neurons per 1M tokens (Cloudflare pricing page): gpt-oss-20b in/out, bge-m3.
+    neuronsPerMInput: num(env.AI_NEURONS_PER_M_INPUT, 18182),
+    neuronsPerMOutput: num(env.AI_NEURONS_PER_M_OUTPUT, 27273),
+    neuronsPerMEmbedding: num(env.EMBEDDING_NEURONS_PER_M, 1075),
+
     loginMaxFailures: 5,
     loginWindowMinutes: 15,
     maxBodyBytes: 64 * 1024,
