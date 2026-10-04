@@ -10,7 +10,7 @@ import { json, error, readJson } from '../utils/http.js';
 import { requireInt, oneOf } from '../security/validation.js';
 import { startSyncRun, runStep, finishRun, parseDocumentConfig } from '../google/sync.js';
 import { listDocuments, listSyncRuns, knowledgeStats } from '../db/documents.js';
-import { getDailyAiUsage } from '../security/rateLimit.js';
+import { readUsageToday } from '../utils/usage.js';
 import { countUsers } from '../db/users.js';
 
 export async function handleAdminSync(request, env) {
@@ -36,10 +36,13 @@ export async function handleAdminSync(request, env) {
 
 export async function handleSyncStatus(request, env) {
   const cfg = getConfig(env);
-  const [stats, documents, runs, aiToday, users] = await Promise.all([
+  const [stats, documents, runs, today, users] = await Promise.all([
     knowledgeStats(env.DB), listDocuments(env.DB), listSyncRuns(env.DB, 10),
-    getDailyAiUsage(env.DB), countUsers(env.DB),
+    readUsageToday(env.DB), countUsers(env.DB),
   ]);
+  // Average neurons per answer today (fallback ≈ typical RAG answer) → answers left.
+  const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 ? Math.max(20, Math.round(today.aiNeurons / today.aiAnswers)) : 150;
+  const neuronsLeft = Math.max(0, cfg.freeNeuronsPerDay - today.aiNeurons);
   let configured = [];
   let configError = null;
   try { configured = parseDocumentConfig(env.GOOGLE_DOCUMENT_IDS); } catch (e) { configError = e.message; }
@@ -60,6 +63,28 @@ export async function handleSyncStatus(request, env) {
       min_similarity: cfg.minSimilarity,
       bootstrap_secrets_present: Boolean(env.ADMIN_INITIAL_USERNAME || env.ADMIN_INITIAL_PASSWORD),
     },
-    usage: { ai_today: aiToday, daily_ai_limit: cfg.dailyAiLimit, users },
+    usage: {
+      day_utc: today.day,
+      users,
+      ai: {
+        answers_today: today.aiAnswers,
+        daily_answer_limit: cfg.dailyAiLimit,
+        neurons_used: today.aiNeurons,
+        neurons_free: cfg.freeNeuronsPerDay,
+        neurons_per_answer: perAnswer,
+        answers_left_estimate: Math.min(
+          Math.floor(neuronsLeft / perAnswer),
+          cfg.dailyAiLimit > 0 ? Math.max(0, cfg.dailyAiLimit - today.aiAnswers) : Infinity,
+        ),
+      },
+      d1: {
+        rows_read: today.d1RowsRead,
+        rows_read_free: cfg.freeD1RowsReadPerDay,
+        rows_written: today.d1RowsWritten,
+        rows_written_free: cfg.freeD1RowsWrittenPerDay,
+        storage_bytes: today.d1SizeBytes,
+        storage_free_bytes: cfg.freeD1StorageBytes,
+      },
+    },
   });
 }
