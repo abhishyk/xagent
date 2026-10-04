@@ -131,7 +131,10 @@
   }
 
   function render(markdown) {
-    const lines = String(markdown || '').replace(/\r\n?/g, '\n').split('\n');
+    const lines = String(markdown || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/【\s*(S\d{1,2})[^】]*】/g, '[$1]') // normalise 【S1】-style citations
+      .split('\n');
     const parts = [];
     let buf = [];
     const flush = () => { if (buf.length) parts.push(renderBlocks(buf.join('\n'))); buf = []; };
