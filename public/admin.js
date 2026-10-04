@@ -108,12 +108,15 @@
     const pct = (a, b) => (b > 0 ? a / b : 0);
     const tips = [];
     const aiPct = Math.max(pct(ai.neurons_used, ai.neurons_free), pct(ai.answers_today, ai.daily_answer_limit));
+    const short = (m) => String(m).split('/').pop();
+    const plan = ai.tiers.map((t) => (t.from_remaining_pct === 100 ? short(t.model) : `${short(t.model)} below ${t.from_remaining_pct}% left`)).join(' → ');
     if (aiPct >= 1) tips.push('AI limit reached: new AI answers are paused until 5:30 AM IST. "Search Docs" still works (it needs no AI answer).');
     else if (aiPct >= 0.7) tips.push('AI usage is high: set "REASONING_EFFORT": "low" in wrangler.jsonc (biggest saving), and use "Search Docs" for quick look-ups.');
     if (pct(d1.rows_written, d1.rows_written_free) >= 0.7) tips.push('D1 writes are high: avoid "Force full re-index" and sync only after the document changes.');
     if (pct(d1.rows_read, d1.rows_read_free) >= 0.7) tips.push('D1 reads are high: check for unusual traffic or repeated syncs.');
     if (pct(d1.storage_bytes, d1.storage_free_bytes) >= 0.7) tips.push('D1 storage is high: remove unused documents from GOOGLE_DOCUMENT_IDS and sync.');
     if (!tips.length) tips.push('✓ Everything is well within the free tier.');
+    tips.push(`Model now: ${short(ai.current_model)}${ai.current_tier !== 'main' ? ' (saving budget)' : ''}. Plan: ${plan}.`);
     tips.push('Counted by xagent itself; AI neurons are estimated from tokens. Exact figures: Cloudflare dashboard → Workers AI, and D1 → xagent → Metrics.');
     $('usage-tips').replaceChildren(...tips.map((t, i) => el('p', { class: `small${i === tips.length - 1 ? ' muted' : ''}`, text: t })));
   }
