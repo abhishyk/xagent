@@ -13,9 +13,9 @@
     'public private protected static const let var new delete try catch finally throw throws import from export ' +
     'package namespace using include define ifdef ifndef endif void int long short char bool boolean float double ' +
     'unsigned signed auto true false null nullptr None True False self this async await yield lambda in is not and or ' +
-    'then fi done esac echo local readonly sudo virtual override extends implements typedef sizeof goto default ' +
-    'select insert update where join create table into values set alter drop'
+    'then fi done esac local readonly virtual override extends implements typedef sizeof goto default'
   ).split(/\s+/));
+  const SQL_KEYWORDS = new Set('select insert update delete where join create table into values set alter drop from and or not null'.split(' '));
   const HASH_COMMENT = new Set(['bash', 'sh', 'shell', 'zsh', 'python', 'py', 'yaml', 'yml', 'ini', 'conf', 'toml', 'ruby', 'rb',
     'perl', 'make', 'dockerfile', 'pxelinux', 'ipxe', 'systemd', 'powershell', 'ps1', '']);
 
@@ -23,8 +23,8 @@
     const l = (lang || '').toLowerCase();
     const hash = HASH_COMMENT.has(l);
     const re = hash
-      ? /(\/\*[\s\S]*?\*\/|#[^\n]*|\/\/[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g
-      : /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|--[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g;
+      ? /(\/\*[\s\S]*?\*\/|#[^\n]*|\/\/[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|((?<![\w.])\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g
+      : /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|--[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|((?<![\w.])\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g;
     let out = '';
     let last = 0;
     let m;
@@ -37,7 +37,7 @@
         else out += `<span class="tok-com">${esc(m[1])}</span>`;
       } else if (m[2] !== undefined) out += `<span class="tok-str">${esc(m[2])}</span>`;
       else if (m[3] !== undefined) out += `<span class="tok-num">${esc(m[3])}</span>`;
-      else out += KEYWORDS.has(m[4]) ? `<span class="tok-kw">${esc(m[4])}</span>` : esc(m[4]);
+      else out += (KEYWORDS.has(m[4]) || (l === 'sql' && SQL_KEYWORDS.has(m[4].toLowerCase()))) ? `<span class="tok-kw">${esc(m[4])}</span>` : esc(m[4]);
       last = re.lastIndex;
     }
     return out + esc(code.slice(last));
