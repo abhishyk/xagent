@@ -49,11 +49,29 @@
     return node;
   }
 
+  function xagentLabel() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 32 32');
+    svg.setAttribute('aria-hidden', 'true');
+    for (const d of ['M16 2 4 7v8c0 7.2 5 13.4 12 15 7-1.6 12-7.8 12-15V7L16 2Z', 'm11 16 3.5 3.5L21.5 12']) {
+      const p = document.createElementNS(ns, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '2.4');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      svg.append(p);
+    }
+    return el('div', { class: 'who' }, svg, el('span', { text: 'Xagent' }));
+  }
+
   function assistantShell() {
     const content = el('div', { class: 'content' });
     const extras = el('div', { class: 'extras' });
-    const body = el('div', { class: 'body' }, extras, content);
-    const node = el('div', { class: 'msg assistant' }, el('div', { class: 'avatar', 'aria-hidden': 'true', text: 'AI' }), body);
+    const body = el('div', { class: 'body' }, xagentLabel(), extras, content);
+    const node = el('div', { class: 'msg assistant' }, body);
     messagesEl.append(node);
     return { node, content, extras, body };
   }
@@ -66,17 +84,16 @@
     if (!sources || !sources.length) return null;
     const list = el('ol');
     for (const s of sources) {
-      const title = s.url
-        ? el('a', { href: s.url, target: '_blank', rel: 'noopener noreferrer', text: s.document })
-        : el('strong', { text: s.document });
+      // Plain text only — which tab/section the answer came from, no links.
+      const where = s.section ? s.section.split(' > ').join(' › ') : (s.document || 'Documentation');
       const meta = [];
-      if (s.section) meta.push(`Section: ${s.section}`);
       if (s.file) meta.push(`File: ${s.file}`);
       if (s.function) meta.push(`Function: ${s.function}`);
       if (s.version) meta.push(`Version: ${s.version}`);
       list.append(el('li', {},
         el('span', { class: 'cite', text: s.label }),
-        el('div', {}, title, meta.length ? el('div', { class: 'src-meta', text: meta.join(' · ') }) : null)));
+        el('div', {}, el('span', { class: 'src-where', text: where }),
+          meta.length ? el('div', { class: 'src-meta', text: meta.join(' · ') }) : null)));
     }
     return el('div', { class: 'sources' }, el('h4', { text: 'Sources' }), list);
   }
@@ -190,10 +207,8 @@
         return;
       }
       for (const r of results) {
-        const title = r.url
-          ? el('a', { href: r.url, target: '_blank', rel: 'noopener noreferrer', text: r.document })
-          : el('strong', { text: r.document });
-        const meta = [r.section, r.file && `File: ${r.file}`, r.function && `Function: ${r.function}`, r.version && `v${r.version}`]
+        const title = el('strong', { text: r.section ? r.section.split(' > ').join(' › ') : (r.document || 'Documentation') });
+        const meta = [r.file && `File: ${r.file}`, r.function && `Function: ${r.function}`, r.version && `v${r.version}`]
           .filter(Boolean).join(' · ');
         const snippet = el('div', { class: 'content' });
         snippet.innerHTML = md.render(r.snippet);
@@ -254,9 +269,6 @@
   $('new-chat').addEventListener('click', newChat);
   $('mode-ask').addEventListener('click', () => setMode('ask'));
   $('mode-search').addEventListener('click', () => setMode('search'));
-  for (const b of document.querySelectorAll('.suggestion')) {
-    b.addEventListener('click', () => { input.value = b.textContent; autosize(); submit(); });
-  }
 
   if (window.matchMedia('(max-width: 520px)').matches) input.placeholder = 'Ask xagent…';
 
