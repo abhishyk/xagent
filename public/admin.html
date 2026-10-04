@@ -6,13 +6,14 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Admin · xagent</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="admin-page">
   <header class="topbar admin-topbar">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.2 5 13.4 12 15 7-1.6 12-7.8 12-15V7L16 2Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m11 16 3.5 3.5L21.5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>xagent · Admin</span>
+      <svg class="brand-mark robot" viewBox="0 0 32 32" aria-hidden="true"><line class="r-line" x1="16" y1="4" x2="16" y2="8.5" stroke-width="2" stroke-linecap="round"/><circle class="r-bulb" cx="16" cy="3.4" r="2.3"/><rect class="r-body" x="2" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="26.8" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="4.5" y="8" width="23" height="20" rx="7"/><rect class="r-visor" x="8" y="12.5" width="16" height="10" rx="5"/><rect class="r-eye" x="11.3" y="15" width="3" height="5" rx="1.5"/><rect class="r-eye" x="17.7" y="15" width="3" height="5" rx="1.5"/></svg>
+      <span>Xagent · Admin</span>
     </div>
     <div class="user-menu">
       <button id="theme-btn" class="icon-btn" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
@@ -49,7 +50,7 @@
     </section>
 
     <section class="card">
-      <div class="card-head"><h2>Knowledge Base</h2><span id="config-info" class="muted small"></span></div>
+      <div class="card-head"><h2>Knowledge Base</h2></div>
       <div class="table-wrap">
         <table class="table">
           <thead><tr><th>Document</th><th>Type</th><th>Version</th><th>Chunks</th><th>Hash</th><th>Status</th><th>Last sync</th></tr></thead>
