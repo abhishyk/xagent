@@ -23,7 +23,7 @@ function withUsage(env) {
 
 // Static files anyone may load (the login page needs them). Everything else
 // in /public is only served to authenticated users.
-const PUBLIC_ASSETS = new Set(['/login.js', '/style.css', '/favicon.svg']);
+const PUBLIC_ASSETS = new Set(['/login.js', '/style.css', '/favicon.svg', '/fonts/manrope.woff2']);
 const PRIVATE_ASSETS = new Set(['/app.js', '/admin.js', '/markdown.js', '/common.js']);
 
 async function serveAsset(env, request, path) {
