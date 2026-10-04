@@ -13,6 +13,13 @@ import { handleSearch } from './api/search.js';
 import { handleAdminSync, handleSyncStatus } from './api/sync.js';
 import { handleListUsers, handleCreateUser, handleToggleUser, handleResetPassword } from './api/users.js';
 import { runFullSync } from './google/sync.js';
+import { newUsageStats, trackDb, flushUsage } from './utils/usage.js';
+
+// Per-request env with a usage-tracking D1 wrapper.
+function withUsage(env) {
+  const stats = newUsageStats();
+  return { env: { ...env, DB: trackDb(env.DB, stats), __usage: stats }, stats };
+}
 
 // Static files anyone may load (the login page needs them). Everything else
 // in /public is only served to authenticated users.
@@ -90,12 +97,19 @@ async function handlePage(request, env, path) {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, rawEnv, ctx) {
     const path = new URL(request.url).pathname;
+    const { env, stats } = withUsage(rawEnv);
+    // Flush once the response (and any streamed AI answer) has finished.
+    const finish = (p) => ctx.waitUntil(Promise.resolve(p).then(() => flushUsage(rawEnv.DB, stats)));
+    const pending = [];
+    const trackedCtx = { ...ctx, waitUntil: (p) => { pending.push(p); ctx.waitUntil(p); } };
     try {
-      if (path.startsWith('/api/')) return await handleApi(request, env, ctx, path);
-      return await handlePage(request, env, path);
+      const res = path.startsWith('/api/') ? await handleApi(request, env, trackedCtx, path) : await handlePage(request, env, path);
+      if (path.startsWith('/api/')) finish(Promise.allSettled(pending)); // static pages aren't counted
+      return res;
     } catch (err) {
+      if (path.startsWith('/api/')) finish(Promise.allSettled(pending));
       if (err instanceof HttpError) return error(err.status, err.message);
       // Never leak stack traces or internals to the client (§46).
       logEvent('UNHANDLED_ERROR', { path, method: request.method, error: String(err?.message || err) });
@@ -104,7 +118,8 @@ export default {
   },
 
   // Optional scheduled sync (enable via "triggers.crons" in wrangler.jsonc).
-  async scheduled(event, env, ctx) {
+  async scheduled(event, rawEnv, ctx) {
+    const { env, stats } = withUsage(rawEnv);
     ctx.waitUntil((async () => {
       try {
         await pruneCounters(env.DB);
@@ -112,6 +127,7 @@ export default {
       } catch (err) {
         logEvent('SYNC_FAILED', { error: String(err?.message || err) });
       }
+      await flushUsage(rawEnv.DB, stats);
     })());
   },
 };
