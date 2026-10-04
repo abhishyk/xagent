@@ -6,16 +6,17 @@
   <meta name="robots" content="noindex, nofollow">
   <title>xagent</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="app">
   <div class="main">
     <header class="topbar">
       <div class="brand topbar-brand">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.2 5 13.4 12 15 7-1.6 12-7.8 12-15V7L16 2Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m11 16 3.5 3.5L21.5 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <h1 class="topbar-title">xagent</h1>
+        <svg class="brand-mark robot" viewBox="0 0 32 32" aria-hidden="true"><line class="r-line" x1="16" y1="4" x2="16" y2="8.5" stroke-width="2" stroke-linecap="round"/><circle class="r-bulb" cx="16" cy="3.4" r="2.3"/><rect class="r-body" x="2" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="26.8" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="4.5" y="8" width="23" height="20" rx="7"/><rect class="r-visor" x="8" y="12.5" width="16" height="10" rx="5"/><rect class="r-eye" x="11.3" y="15" width="3" height="5" rx="1.5"/><rect class="r-eye" x="17.7" y="15" width="3" height="5" rx="1.5"/></svg>
+        <h1 class="topbar-title">Xagent</h1>
       </div>
-      <button id="new-chat" class="btn btn-primary btn-sm" type="button" title="New chat (clears this conversation)" aria-label="New chat">＋<span class="wide-only"> New Chat</span></button>
+      <button id="new-chat" class="btn btn-ghost btn-sm" type="button" title="New chat (clears this conversation)" aria-label="New chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="wide-only">New chat</span></button>
       <span class="topbar-spacer"></span>
       <div class="mode-switch" role="tablist" aria-label="Mode">
         <button id="mode-ask" class="mode active" role="tab" aria-selected="true" type="button">Ask<span class="wide-only"> AI</span></button>
@@ -33,13 +34,27 @@
 
     <section id="messages" class="messages" aria-live="polite">
       <div id="welcome" class="welcome">
-        <h2>How can I help you today?</h2>
+        <div>
+        <svg class="robot hero-robot" viewBox="0 0 160 172" role="img" aria-label="Xagent robot">
+          <line class="r-line" x1="80" y1="14" x2="80" y2="30" stroke-width="5" stroke-linecap="round"/>
+          <circle class="r-bulb" cx="80" cy="11" r="8"/>
+          <rect class="r-body" x="12" y="62" width="14" height="36" rx="7"/>
+          <rect class="r-body" x="134" y="62" width="14" height="36" rx="7"/>
+          <path class="r-body" d="M34 172c0-26 18-40 46-40s46 14 46 40z" opacity=".92"/>
+          <rect class="r-body" x="68" y="118" width="24" height="18" rx="5"/>
+          <rect class="r-body" x="22" y="28" width="116" height="98" rx="36"/>
+          <rect class="r-visor" x="38" y="50" width="84" height="50" rx="25"/>
+          <rect class="r-eye" x="57" y="62" width="14" height="26" rx="7"/>
+          <rect class="r-eye" x="89" y="62" width="14" height="26" rx="7"/>
+        </svg>
+          <div class="hero-name">Xagent</div>
+        </div>
       </div>
     </section>
 
     <form id="composer" class="composer" autocomplete="off">
       <div class="composer-box">
-        <textarea id="input" rows="1" maxlength="12000" placeholder="Ask xagent anything… (paste logs, config or code too)" aria-label="Message"></textarea>
+        <textarea id="input" rows="1" maxlength="12000" placeholder="Ask Xagent anything… (paste logs, config or code too)" aria-label="Message"></textarea>
         <button id="send-btn" class="btn btn-primary send-btn" type="submit" aria-label="Send">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-6 16-2.5-6.5L4 12Z" fill="currentColor"/></svg>
           <span class="send-label">Send</span>
@@ -49,6 +64,7 @@
     </form>
   </div>
 
+  <template id="tpl-robot"><svg class="robot" viewBox="0 0 32 32" aria-hidden="true"><line class="r-line" x1="16" y1="4" x2="16" y2="8.5" stroke-width="2" stroke-linecap="round"/><circle class="r-bulb" cx="16" cy="3.4" r="2.3"/><rect class="r-body" x="2" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="26.8" y="14.5" width="3.2" height="7" rx="1.6"/><rect class="r-body" x="4.5" y="8" width="23" height="20" rx="7"/><rect class="r-visor" x="8" y="12.5" width="16" height="10" rx="5"/><rect class="r-eye" x="11.3" y="15" width="3" height="5" rx="1.5"/><rect class="r-eye" x="17.7" y="15" width="3" height="5" rx="1.5"/></svg></template>
   <script src="/markdown.js"></script>
   <script src="/common.js"></script>
   <script src="/app.js"></script>
