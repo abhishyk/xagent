@@ -46,28 +46,16 @@ export function buildRetrievalQuery(question, history) {
   return `${cleanQueryText(lastUser.content.slice(0, 600))}\n${q}`;
 }
 
-// Deep link to the exact tab + heading: .../edit?tab=t.xxx#heading=h.yyy
-// heading_id is stored as "tabId|headingId" (older rows: just "headingId").
-export function sourceUrl(c) {
-  if (!c.document_url) return null;
-  if (!c.heading_id) return c.document_url;
-  const [tab, heading] = c.heading_id.includes('|') ? c.heading_id.split('|') : ['', c.heading_id];
-  let url = c.document_url;
-  if (tab) url += `?tab=${encodeURIComponent(tab)}`;
-  if (heading) url += `#heading=${encodeURIComponent(heading)}`;
-  return url;
-}
-
+// What users see about a source: which tab/section it came from — never a link
+// to the Google Doc (users must not be able to open the doc itself).
 export function toSource(c) {
   return {
     label: c.label,
-    document: c.document_name,
-    type: c.document_type,
     section: c.section || null,
+    document: c.section ? null : c.document_name, // shown only when there is no tab/section name
     file: c.file_name || null,
     function: c.function_name || null,
     version: c.version || null,
-    url: sourceUrl(c),
     score: Math.round(c.score * 1000) / 1000,
     chunk_type: c.chunk_type,
   };
