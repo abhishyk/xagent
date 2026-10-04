@@ -8,7 +8,7 @@ import { getConfig } from '../config.js';
 import { json, error, readJson, securityHeaders, HttpError } from '../utils/http.js';
 import { logEvent } from '../utils/log.js';
 import { requireString, cleanText } from '../security/validation.js';
-import { hitUserRateLimit, reserveDailyAi } from '../security/rateLimit.js';
+import { hitUserRateLimit, reserveDailyAi, releaseDailyAi } from '../security/rateLimit.js';
 import { retrieve, KnowledgeSearchError } from '../ai/rag.js';
 import { buildContextBlock, buildMessages } from '../ai/prompts.js';
 import { generateStream } from '../ai/model.js';
@@ -64,6 +64,7 @@ export async function handleChat(request, env, ctx, user) {
   try {
     rag = await retrieve(env, { question, history });
   } catch (err) {
+    await releaseDailyAi(env.DB, cfg.dailyAiLimit); // nothing was answered
     if (err instanceof KnowledgeSearchError) return error(503, 'Knowledge search is temporarily unavailable.');
     throw err;
   }
@@ -97,6 +98,7 @@ export async function handleChat(request, env, ctx, user) {
       logEvent('AI_RESPONSE', { user_id: user.id, duration_ms: Date.now() - started, status: 'ok' });
     } catch (err) {
       logEvent('AI_ERROR', { user_id: user.id, error: String(err?.message || err) });
+      if (!answer.trim()) await releaseDailyAi(env.DB, cfg.dailyAiLimit).catch(() => {});
       await write('error', { message: 'AI service temporarily unavailable.' }).catch(() => {});
     } finally {
       await writer.close().catch(() => {});
