@@ -2,6 +2,7 @@
 // and the response parser accepts the shapes Workers AI embedding models return.
 
 import { getConfig } from '../config.js';
+import { addNeurons, estimateTokens } from '../utils/usage.js';
 
 export function extractVectors(result) {
   if (!result) return [];
@@ -18,6 +19,7 @@ export async function embedTexts(env, texts) {
   const cfg = getConfig(env);
   if (!texts.length) return [];
   const result = await env.AI.run(cfg.embeddingModel, { text: texts });
+  addNeurons(env.__usage, estimateTokens(texts.reduce((n, t) => n + t.length, 0)), cfg.neuronsPerMEmbedding);
   const vectors = extractVectors(result);
   if (vectors.length !== texts.length) {
     throw new Error(`Embedding model returned ${vectors.length} vectors for ${texts.length} inputs`);
