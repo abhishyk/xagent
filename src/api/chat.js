@@ -32,6 +32,11 @@ export function sanitizeHistory(raw, maxMessages) {
   return maxMessages > 0 ? out : [];
 }
 
+// Models sometimes cite as 【S1】 or 【S1†L3-L5】 instead of [S1].
+export function normalizeCitations(text) {
+  return String(text).replace(/【\s*(S\d{1,2})[^】]*】/g, '[$1]');
+}
+
 function sse(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
@@ -86,7 +91,8 @@ export async function handleChat(request, env, ctx, user) {
       }
       if (!answer.trim()) throw new Error('empty model response');
       // Only keep sources the answer actually cites; if none cited, keep all retrieved.
-      const cited = rag.sources.filter((s) => answer.includes(`[${s.label}]`));
+      const normalized = normalizeCitations(answer);
+      const cited = rag.sources.filter((s) => normalized.includes(`[${s.label}]`));
       await write('done', { sources: cited.length ? cited : rag.sources });
       logEvent('AI_RESPONSE', { user_id: user.id, duration_ms: Date.now() - started, status: 'ok' });
     } catch (err) {
