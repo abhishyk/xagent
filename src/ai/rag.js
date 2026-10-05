@@ -84,15 +84,110 @@ export function buildFtsQuery(terms) {
   return terms.map((t) => `"${t.replace(/"/g, '')}"`).join(' OR ');
 }
 
-// Share of the question's terms that appear in a chunk (rough stem match).
-export function keywordCoverage(terms, content) {
-  if (!terms.length) return 0;
-  const text = String(content || '').toLowerCase();
-  let hit = 0;
-  for (const t of terms) {
-    if (text.includes(t) || (t.length > 5 && text.includes(t.slice(0, t.length - 2)))) hit++;
+const wordsOf = (text) => String(text || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+
+// Edit distance (insert / delete / replace / swap of neighbours), stops early above `max`.
+export function editDistance(a, b, max = 2) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev2 = null;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let d = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, prev2[j - 2] + 1);
+      cur.push(d);
+      if (d < rowMin) rowMin = d;
+    }
+    if (rowMin > max) return max + 1;
+    prev2 = prev; prev = cur;
   }
-  return hit / terms.length;
+  return prev[b.length];
+}
+
+// Does a question term match a word of the document?
+// Exact, word forms (doc/docs, install/installation), part of a joined word
+// (client in validateClient) and small typos (oogle -> google, instal -> install).
+function directMatch(t, w) {
+  if (w === t) return true;
+  if (t.length >= 3 && w.startsWith(t)) return true;
+  if (w.length >= 5 && t.startsWith(w) && t.length - w.length <= 5) return true;
+  if (t.length > 5 && w.startsWith(t.slice(0, -2))) return true;
+  return t.length >= 5 && w.includes(t);
+}
+
+// The same rules as directMatch() as one regex over the whole text.
+const NOT_WORD = '[^\\p{L}\\p{N}]';
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function directRegex(t) {
+  const alts = [`(?:^|${NOT_WORD})${esc(t)}`];
+  if (t.length >= 5) alts.push(esc(t));
+  if (t.length > 5) alts.push(`(?:^|${NOT_WORD})${esc(t.slice(0, -2))}`);
+  for (let k = Math.max(5, t.length - 5); k < t.length; k++) {
+    alts.push(`(?:^|${NOT_WORD})${esc(t.slice(0, k))}(?:$|${NOT_WORD})`);
+  }
+  return new RegExp(alts.join('|'), 'u');
+}
+
+// Typo match, only tried when a term matches no document word directly.
+function fuzzyMatch(t, w) {
+  if (t.length < 5 || w.length < 4) return false;
+  const max = t.length >= 8 ? 2 : 1;
+  if (Math.abs(t.length - w.length) > max) return false;
+  // cheap filter: a typo keeps either the start or the end of the word
+  if (w[0] !== t[0] && w[1] !== t[0] && w[0] !== t[1] && w.slice(-2) !== t.slice(-2)) return false;
+  return editDistance(t, w, max) <= max;
+}
+
+export function termMatchesWord(t, w) {
+  return directMatch(t, w) || fuzzyMatch(t, w);
+}
+
+// Keyword coverage for every candidate chunk, weighted by how rare each term is
+// among the candidates: words found almost everywhere ("doc", "api") count
+// little, specific words ("google", "cpanel", "2083") count a lot.
+export function keywordScorer(terms, texts) {
+  const lower = texts.map((t) => String(t || '').toLowerCase());
+  // Direct matches with one native regex per term (fast, no tokenising).
+  const matched = lower.map(() => terms.map(() => false));
+  const needFuzzy = [];
+  terms.forEach((t, ti) => {
+    const re = directRegex(t);
+    let any = false;
+    lower.forEach((txt, i) => { if (re.test(txt)) { matched[i][ti] = true; any = true; } });
+    if (!any && t.length >= 5) needFuzzy.push(ti);
+  });
+  // Typo matching only for terms found nowhere (max 2 terms per question).
+  if (needFuzzy.length) {
+    const docWords = lower.map((t) => new Set(wordsOf(t)));
+    const vocab = new Set();
+    for (const s of docWords) for (const w of s) vocab.add(w);
+    for (const ti of needFuzzy.slice(0, 2)) {
+      const hits = [];
+      for (const w of vocab) if (fuzzyMatch(terms[ti], w)) hits.push(w);
+      if (!hits.length) continue;
+      docWords.forEach((s, i) => { if (hits.some((w) => s.has(w))) matched[i][ti] = true; });
+    }
+  }
+  const n = Math.max(1, texts.length);
+  const weights = terms.map((_, ti) => {
+    const df = matched.reduce((c, m) => c + (m[ti] ? 1 : 0), 0);
+    return df ? 1 + Math.log(n / df) : 1;
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  return (i) => {
+    if (!terms.length || !total) return 0;
+    let got = 0;
+    matched[i].forEach((m, ti) => { if (m) got += weights[ti]; });
+    return got / total;
+  };
+}
+
+// Single text, unweighted (kept for simple checks).
+export function keywordCoverage(terms, content) {
+  return keywordScorer(terms, [content])(0);
 }
 
 // Hybrid retrieval: semantic (Vectorize) + keyword (D1 FTS5).
@@ -127,21 +222,23 @@ export async function retrieve(env, { question, history = [], topK, minScore, do
   }
 
   const vecScore = new Map(matches.filter((m) => typeof m.score === 'number').map((m) => [m.id, m.score]));
+  // Near-miss semantic matches are candidates too: keyword / typo matching can
+  // still rescue them (e.g. a misspelt question word).
   const ids = new Set([
-    ...matches.filter((m) => m.score >= threshold).map((m) => m.id),
+    ...matches.filter((m) => m.score >= threshold - 0.1).map((m) => m.id),
     ...keywordHits.map((h) => h.chunk_id),
   ]);
-  const rows = await getChunksByIds(env.DB, [...ids]);
+  const rows = (await getChunksByIds(env.DB, [...ids])).filter((row) =>
+    (!docTypes || docTypes.includes(row.document_type)) &&
+    // Version awareness: drop chunks explicitly labelled with a different version.
+    !(askedVersion && row.version && !versionsCompatible(askedVersion, row.version)));
+  const coverage = keywordScorer(questionTerms, rows.map((r) => `${r.section || ''} ${r.content}`));
 
   let ranked = [];
-  for (const row of rows) {
-    if (docTypes && !docTypes.includes(row.document_type)) continue;
-    // Version awareness: drop chunks explicitly labelled with a different version.
-    if (askedVersion && row.version && !versionsCompatible(askedVersion, row.version)) continue;
-
+  for (const [i, row] of rows.entries()) {
     const v = vecScore.get(row.id) ?? 0;
     const vectorOk = v >= threshold;
-    const cov = keywordCoverage(questionTerms, `${row.section || ''} ${row.content}`);
+    const cov = coverage(i);
     // Keyword hit counts when it covers most of the question's meaningful words.
     const keywordOk = questionTerms.length > 0 && (questionTerms.length === 1 ? cov === 1 : cov >= 0.5);
     if (!vectorOk && !keywordOk) continue;
