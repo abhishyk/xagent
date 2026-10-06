@@ -15,8 +15,8 @@ import { chooseTier, tierInfo } from '../ai/tiers.js';
 import { countUsers } from '../db/users.js';
 
 /**
- * Helper utility to split an array into smaller chunks (batches of max size).
- * Used to ensure delete payloads do not exceed limits (e.g., max 100 IDs per request).
+ * Helper utility to split an array into smaller chunks (max 100 items per batch)
+ * to comply with Cloudflare Vectorize's delete limits (Error 40007).
  */
 function chunkArray(array, size = 100) {
   const results = [];
@@ -27,19 +27,15 @@ function chunkArray(array, size = 100) {
 }
 
 /**
- * Example helper function if you need to perform batched deletes across your sync routine.
- * Adjust the API call or database operation inside this function as needed.
+ * Safe Vectorize delete wrapper ensuring arrays exceeding 100 IDs 
+ * are broken down into sequential batches of <= 100.
  */
-export async function batchDeleteDocuments(ids, deleteHandler) {
+export async function safeDeleteVectorIds(vectorizeBinding, ids) {
+  if (!ids || ids.length === 0) return;
   const batches = chunkArray(ids, 100);
-  const results = [];
-  
   for (const batch of batches) {
-    const res = await deleteHandler(batch);
-    results.push(res);
+    await vectorizeBinding.deleteByIds(batch);
   }
-  
-  return results;
 }
 
 export async function handleAdminSync(request, env) {
@@ -66,20 +62,33 @@ export async function handleAdminSync(request, env) {
 export async function handleSyncStatus(request, env) {
   const cfg = getConfig(env);
   const [stats, documents, runs, today, users] = await Promise.all([
-    knowledgeStats(env.DB), listDocuments(env.DB), listSyncRuns(env.DB, 10),
-    readUsageToday(env.DB), countUsers(env.DB),
+    knowledgeStats(env.DB),
+    listDocuments(env.DB),
+    listSyncRuns(env.DB, 10),
+    readUsageToday(env.DB),
+    countUsers(env.DB),
   ]);
-  
+
   // Average neurons per answer today (fallback ≈ typical RAG answer) → answers left.
-  const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 ? Math.max(20, Math.round(today.aiNeurons / today.aiAnswers)) : 150;
+  const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 
+    ? Math.max(20, Math.round(today.aiNeurons / today.aiAnswers)) 
+    : 150;
   const neuronsLeft = Math.max(0, cfg.freeNeuronsPerDay - today.aiNeurons);
+  
   let configured = [];
   let configError = null;
-  try { configured = parseDocumentConfig(env.GOOGLE_DOCUMENT_IDS); } catch (e) { configError = e.message; }
+  try { 
+    configured = parseDocumentConfig(env.GOOGLE_DOCUMENT_IDS); 
+  } catch (e) { 
+    configError = e.message; 
+  }
 
   return json({
     knowledge: stats,
-    documents: documents.map((d) => ({ ...d, content_hash: d.content_hash ? d.content_hash.slice(0, 12) : null })),
+    documents: documents.map((d) => ({ 
+      ...d, 
+      content_hash: d.content_hash ? d.content_hash.slice(0, 12) : null 
+    })),
     runs,
     last_sync: runs.find((r) => r.status !== 'running') || null,
     config: {
