@@ -14,6 +14,34 @@ import { readUsageToday } from '../utils/usage.js';
 import { chooseTier, tierInfo } from '../ai/tiers.js';
 import { countUsers } from '../db/users.js';
 
+/**
+ * Helper utility to split an array into smaller chunks (batches of max size).
+ * Used to ensure delete payloads do not exceed limits (e.g., max 100 IDs per request).
+ */
+function chunkArray(array, size = 100) {
+  const results = [];
+  for (let i = 0; i < array.length; i += size) {
+    results.push(array.slice(i, i + size));
+  }
+  return results;
+}
+
+/**
+ * Example helper function if you need to perform batched deletes across your sync routine.
+ * Adjust the API call or database operation inside this function as needed.
+ */
+export async function batchDeleteDocuments(ids, deleteHandler) {
+  const batches = chunkArray(ids, 100);
+  const results = [];
+  
+  for (const batch of batches) {
+    const res = await deleteHandler(batch);
+    results.push(res);
+  }
+  
+  return results;
+}
+
 export async function handleAdminSync(request, env) {
   const body = await readJson(request, 2048);
   const action = oneOf(body.action || 'start', ['start', 'step', 'finish'], 'action');
@@ -41,6 +69,7 @@ export async function handleSyncStatus(request, env) {
     knowledgeStats(env.DB), listDocuments(env.DB), listSyncRuns(env.DB, 10),
     readUsageToday(env.DB), countUsers(env.DB),
   ]);
+  
   // Average neurons per answer today (fallback ≈ typical RAG answer) → answers left.
   const perAnswer = today.aiAnswers > 0 && today.aiNeurons > 0 ? Math.max(20, Math.round(today.aiNeurons / today.aiAnswers)) : 150;
   const neuronsLeft = Math.max(0, cfg.freeNeuronsPerDay - today.aiNeurons);
